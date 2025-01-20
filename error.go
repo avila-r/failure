@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 
 	"github.com/avila-r/failure/trait"
@@ -27,10 +28,30 @@ var (
 	_ fmt.Formatter = (*Error)(nil)
 )
 
-func (e *Error) Is(err error) bool {
+func (e *Error) Belongs(err error) bool {
 	typed := Cast(err)
 
 	return typed != nil && Extends(e, typed.Class())
+}
+
+func (e *Error) Is(err error) bool {
+	if err, ok := err.(*Error); ok {
+		return e.message == err.message
+	}
+
+	return e.message == err.Error()
+}
+
+func (e *Error) As(target any) bool {
+	t := reflect.Indirect(reflect.ValueOf(target)).Interface()
+
+	if err, ok := t.(*Error); ok {
+		if e.message == err.message {
+			reflect.ValueOf(target).Elem().Set(reflect.ValueOf(err))
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Error) Has(trait trait.Trait) bool {
@@ -107,6 +128,29 @@ func (e *Error) With(key string, value any) *Error {
 		copy.PrintablePropertyCount++
 	}
 	return &copy
+}
+
+func (e *Error) Also(errs ...error) *Error {
+	var (
+		underlying = e.underlying()
+		new        = underlying
+	)
+
+	for _, err := range errs {
+		if err == nil {
+			continue
+		}
+		new = append(new, err)
+	}
+
+	if len(new) == len(underlying) {
+		return e
+	}
+
+	l := len(new)
+	copy := e.With(PropertyUnderlying, new[:l:l])
+	copy.HasUnderlying = true
+	return copy
 }
 
 func (e *Error) Unwrap() error {
