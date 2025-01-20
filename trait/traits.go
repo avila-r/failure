@@ -1,5 +1,8 @@
 package trait
 
-func Timeout() Trait {
-	return Trait{}
-}
+var (
+	Temporary = New("temporary")
+	Timeout   = New("timeout")
+	NotFound  = New("not_found")
+	Duplicate = New("duplicate")
+)
