@@ -48,7 +48,7 @@ var (
 	ConcurrentUpdate = CommonErrors.Class("concurrent_update")
 
 	// TimeoutElapsed is a type for timeout error
-	TimeoutElapsed = CommonErrors.Class("timeout", trait.Timeout())
+	TimeoutElapsed = CommonErrors.Class("timeout", trait.Timeout)
 
 	// NotImplemented is an error type for lacking implementation
 	NotImplemented = UnsupportedOperation.Class("not_implemented")
@@ -71,5 +71,5 @@ var (
 	_ = synthetic.Class("wrap")
 
 	// Private error type used for stack trace capture
-	_ = synthetic.Class("stacktrace").Apply(modifier.ClassModifierTransparent)
+	stackTraceWrapper = synthetic.Class("stacktrace").Apply(modifier.ClassModifierTransparent)
 )
