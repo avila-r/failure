@@ -17,6 +17,34 @@ type ErrorClass struct {
 	Modifiers modifier.Modifiers
 }
 
+func (c *ErrorClass) Of(message string, v ...any) *Error {
+	return New(message, v...)
+}
+
+func (c *ErrorClass) New(message string, v ...any) *Error {
+	return Builder(c).
+		Message(message, v...).
+		Build()
+}
+
+func (c *ErrorClass) Blank() *Error {
+	return Builder(c).
+		Build()
+}
+
+func (c *ErrorClass) Wrap(err error, message string, v ...any) *Error {
+	return Builder(c).
+		Message(message, v...).
+		Cause(err).
+		Build()
+}
+
+func (c *ErrorClass) From(err error) *Error {
+	return Builder(c).
+		Cause(err).
+		Build()
+}
+
 func Class(namespace ErrorNamespace, name string, traits ...trait.Trait) *ErrorClass {
 	class := &ErrorClass{
 		Namespace: namespace,
@@ -92,6 +120,14 @@ func (c *ErrorClass) Apply(modifiers ...modifier.ClassModifier) *ErrorClass {
 
 func (c *ErrorClass) String() string {
 	return c.Name
+}
+
+func (c *ErrorClass) RootNamespace() ErrorNamespace {
+	n := c.Namespace
+	for n.Parent != nil {
+		n = *n.Parent
+	}
+	return n
 }
 
 func (c *ErrorClass) register() {
