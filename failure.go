@@ -21,7 +21,14 @@ func Of(message string, v ...any) *Error {
 }
 
 func New(message string, v ...any) *Error {
-	return nil
+	return Builder(DefaultClass).
+		Message(message, v...).
+		Build()
+}
+
+func Blank() *Error {
+	return Builder(DefaultClass).
+		Build()
 }
 
 func From(err error) *Error {
