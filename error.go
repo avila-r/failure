@@ -171,7 +171,7 @@ func (e *Error) Class() *ErrorClass {
 		cause = Cast(cause.Cause)
 	}
 
-	return foreignType
+	return foreignClass
 }
 
 func (e *Error) Message() string {
@@ -190,19 +190,19 @@ func (e *Error) Message() string {
 				return parts[0] + delimiter + parts[1]
 			}
 		default:
-			filteredParts := make([]string, 0, len(parts))
+			filtered := make([]string, 0, len(parts))
 			for _, part := range parts {
 				if len(part) > 0 {
-					filteredParts = append(filteredParts, part)
+					filtered = append(filtered, part)
 				}
 			}
 
-			return strings.Join(filteredParts, delimiter)
+			return strings.Join(filtered, delimiter)
 		}
 	}
 
 	properties := ""
-	if e.PrintablePropertyCount != 0 {
+	if e.properties != nil && e.PrintablePropertyCount != 0 {
 		var (
 			uniq = make(map[string]struct{}, e.PrintablePropertyCount)
 			strs = make([]string, 0, e.PrintablePropertyCount)
