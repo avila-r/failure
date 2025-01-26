@@ -2,6 +2,7 @@ package failure
 
 import (
 	"encoding"
+	"strings"
 
 	"github.com/avila-r/failure/id"
 	"github.com/avila-r/failure/modifier"
@@ -18,7 +19,7 @@ type ErrorClass struct {
 }
 
 func (c *ErrorClass) Of(message string, v ...any) *Error {
-	return New(message, v...)
+	return c.New(message, v...)
 }
 
 func (c *ErrorClass) New(message string, v ...any) *Error {
@@ -45,15 +46,15 @@ func (c *ErrorClass) From(err error) *Error {
 		Build()
 }
 
-func Class(namespace ErrorNamespace, name string, traits ...trait.Trait) *ErrorClass {
+func Class(name string, traits ...trait.Trait) *ErrorClass {
 	class := &ErrorClass{
-		Namespace: namespace,
+		Namespace: DefaultNamespace,
 		Parent:    nil,
 		ID:        id.Next(),
-		Name:      namespace.Name + "." + name,
+		Name:      name,
 		Traits: func() map[trait.Trait]bool {
 			result := make(map[trait.Trait]bool)
-			for trait := range namespace.CollectTraits() {
+			for trait := range DefaultNamespace.CollectTraits() {
 				result[trait] = true
 			}
 			for _, trait := range traits {
@@ -61,7 +62,7 @@ func Class(namespace ErrorNamespace, name string, traits ...trait.Trait) *ErrorC
 			}
 			return result
 		}(),
-		Modifiers: modifier.Inherited(namespace.Modifiers),
+		Modifiers: modifier.Inherited(DefaultNamespace.Modifiers),
 	}
 
 	class.register()
@@ -74,7 +75,13 @@ func (c ErrorClass) Class(name string, traits ...trait.Trait) *ErrorClass {
 		Namespace: c.Namespace,
 		Parent:    &c,
 		ID:        id.Next(),
-		Name:      c.Name + "." + name,
+		Name: func() string {
+			if strings.Contains(c.Name, DefaultClass.Name) {
+				return name
+			} else {
+				return c.Name + "." + name
+			}
+		}(),
 		Traits: func() map[trait.Trait]bool {
 			result := make(map[trait.Trait]bool)
 			for trait := range c.Traits {
