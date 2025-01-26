@@ -81,7 +81,7 @@ func (b ErrorBuilder) Message(message string, v ...any) ErrorBuilder {
 func (b ErrorBuilder) Build() *Error {
 	return &Error{
 		class:       b.class,
-		message:     b.message,
+		Message:     b.message,
 		Cause:       b.cause,
 		Transparent: b.transparent,
 		StackTrace: func() *StackTrace {
