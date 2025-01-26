@@ -51,7 +51,27 @@ func (n ErrorNamespace) Apply(modifiers ...modifier.ClassModifier) ErrorNamespac
 }
 
 func (n ErrorNamespace) Class(name string, traits ...trait.Trait) *ErrorClass {
-	return Class(n, name, traits...)
+	class := &ErrorClass{
+		Namespace: n,
+		Parent:    nil,
+		ID:        id.Next(),
+		Name:      n.Name + "." + name,
+		Traits: func() map[trait.Trait]bool {
+			result := make(map[trait.Trait]bool)
+			for trait := range n.CollectTraits() {
+				result[trait] = true
+			}
+			for _, trait := range traits {
+				result[trait] = true
+			}
+			return result
+		}(),
+		Modifiers: modifier.Inherited(n.Modifiers),
+	}
+
+	class.register()
+
+	return class
 }
 
 func (n ErrorNamespace) Contains(class *ErrorClass) bool {
