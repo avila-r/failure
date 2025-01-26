@@ -2,14 +2,37 @@ package failure
 
 import (
 	"github.com/avila-r/failure/modifier"
+	"github.com/avila-r/failure/property"
 	"github.com/avila-r/failure/trait"
 )
 
+const (
+	PropertyStatusCode = property.StatusCode
+	PropertyContext    = property.Context
+	PropertyPayload    = property.Payload
+	PropertyUnderlying = property.Underlying
+)
+
 var (
+	TraitTemporary = trait.Temporary
+	TraitTimeout   = trait.Timeout
+	TraitNotFound  = trait.NotFound
+	TraitDuplicate = trait.Duplicate
+)
+
+var (
+	ModifierTransparent    = modifier.ClassModifierTransparent
+	ModifierOmitStackTrace = modifier.ClassModifierOmitStackTrace
+	ModifierNone           = modifier.None
+)
+
+var (
+	// DefaultNamespace represents the default namespace assigned
+	// when the user does not specify a custom namespace.
 	DefaultNamespace = Namespace("default")
 
 	// DefaultClass is a class for generic error
-	DefaultClass = DefaultNamespace.Class("unknown")
+	DefaultClass = Class("failure")
 
 	// CommonErrors is a namespace for general purpose errors designed for universal use.
 	// These errors should typically be used in opaque manner, implying no handing in user code.
