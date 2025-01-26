@@ -7,16 +7,17 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/avila-r/failure/property"
 	"github.com/avila-r/failure/trait"
 )
 
 type Error struct {
 	class *ErrorClass
 
-	message    string
+	Message    string
 	Cause      error
 	StackTrace *StackTrace
-	properties *Properties
+	properties *property.List
 
 	Transparent            bool
 	HasUnderlying          bool
@@ -36,17 +37,17 @@ func (e *Error) Belongs(err error) bool {
 
 func (e *Error) Is(err error) bool {
 	if err, ok := err.(*Error); ok {
-		return e.message == err.message
+		return e.Message == err.Message
 	}
 
-	return e.message == err.Error()
+	return e.Message == err.Error()
 }
 
 func (e *Error) As(target any) bool {
 	t := reflect.Indirect(reflect.ValueOf(target)).Interface()
 
 	if err, ok := t.(*Error); ok {
-		if e.message == err.message {
+		if e.Message == err.Message {
 			reflect.ValueOf(target).Elem().Set(reflect.ValueOf(err))
 			return true
 		}
@@ -91,24 +92,27 @@ func (e *Error) Extends(c *ErrorClass) bool {
 	return false
 }
 
-func (e *Error) Attribute(key string) PropertyResult {
+func (e *Error) Attribute(key string) property.Result {
 	return e.Property(key)
 }
 
-func (e *Error) Field(key string) PropertyResult {
+func (e *Error) Field(key string) property.Result {
 	return e.Property(key)
 }
 
-func (e *Error) Value(key string) PropertyResult {
+func (e *Error) Value(key string) property.Result {
 	return e.Property(key)
 }
 
-func (e *Error) Property(key string) PropertyResult {
+func (e *Error) Property(key string) property.Result {
 	cause := e
 	for cause != nil {
 		value, ok := cause.properties.Get(key)
 		if ok {
-			return PropertyResult{value, true}
+			return property.Result{
+				Value: value,
+				Ok:    true,
+			}
 		}
 
 		if !cause.Transparent {
@@ -118,7 +122,10 @@ func (e *Error) Property(key string) PropertyResult {
 		cause = Cast(cause.Cause)
 	}
 
-	return PropertyResult{nil, false}
+	return property.Result{
+		Value: nil,
+		Ok:    false,
+	}
 }
 
 func (e *Error) With(key string, value any) *Error {
@@ -148,7 +155,7 @@ func (e *Error) Also(errs ...error) *Error {
 	}
 
 	l := len(new)
-	copy := e.With(PropertyUnderlying, new[:l:l])
+	copy := e.With(property.Underlying, new[:l:l])
 	copy.HasUnderlying = true
 	return copy
 }
@@ -174,7 +181,7 @@ func (e *Error) Class() *ErrorClass {
 	return foreignClass
 }
 
-func (e *Error) Message() string {
+func (e *Error) Summary() string {
 	var join = func(delimiter string, parts ...string) string {
 		switch len(parts) {
 		case 0:
@@ -208,18 +215,18 @@ func (e *Error) Message() string {
 			strs = make([]string, 0, e.PrintablePropertyCount)
 		)
 
-		for m := e.properties; m != nil; m = m.next {
-			if _, ok := uniq[m.key]; ok {
+		for m := e.properties; m != nil; m = m.Next {
+			if _, ok := uniq[m.Key]; ok {
 				continue
 			}
-			uniq[m.key] = struct{}{}
-			strs = append(strs, fmt.Sprintf("%s: %v", m.key, m.value))
+			uniq[m.Key] = struct{}{}
+			strs = append(strs, fmt.Sprintf("%s: %v", m.Key, m.Value))
 		}
 
 		properties = "{" + strings.Join(strs, ", ") + "}"
 	}
 
-	text := join(" ", e.message, properties)
+	text := join(" ", e.Message, properties)
 	if cause := e.Cause; cause != nil {
 		text = join(", cause: ", text, cause.Error())
 	}
@@ -244,14 +251,14 @@ func (e *Error) underlying() []error {
 	if !e.HasUnderlying {
 		return nil
 	}
-	u, _ := e.properties.Get(PropertyUnderlying)
+	u, _ := e.properties.Get(property.Underlying)
 	return u.([]error)
 }
 
 // Error implements the error interface.
 // A result is the same as with %s formatter and does not contain a stack trace.
 func (e *Error) Error() string {
-	return e.message
+	return e.Message
 }
 
 // Format implements the Formatter interface.
@@ -266,7 +273,7 @@ func (e *Error) Error() string {
 // If a stack trace is not required, it should be omitted
 // at the moment of creation rather in formatting.
 func (e *Error) Format(state fmt.State, verb rune) {
-	switch message := e.Message(); verb {
+	switch message := e.Summary(); verb {
 	case 'v':
 		_, _ = io.WriteString(state, message)
 		if state.Flag('+') {
