@@ -119,8 +119,8 @@ func Test_Decorate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := failure.Decorate(test.err, test.message, test.args...)
-			if err.Message() != test.expected {
-				t.Errorf("expected %v, got %v", test.expected, err.Message())
+			if err.Summary() != test.expected {
+				t.Errorf("expected %v, got %v", test.expected, err.Summary())
 			}
 		})
 	}
@@ -163,7 +163,7 @@ func Test_Is(t *testing.T) {
 func Test_Has(t *testing.T) {
 	var (
 		custom = trait.New("custom")
-		class  = failure.Class(failure.Namespace("test"), "class", custom)
+		class  = failure.Class("class", custom)
 		err    = class.New("error").With("key", "value")
 	)
 
