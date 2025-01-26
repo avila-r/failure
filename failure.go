@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/avila-r/failure/property"
 	"github.com/avila-r/failure/trait"
 )
 
@@ -155,6 +156,22 @@ func Cause(err error) error {
 		}
 		err = previous
 	}
+}
+
+func Property(err error, key string) property.Result {
+	if err := Cast(err); err != nil {
+		return err.Property(key)
+	}
+
+	return property.Empty()
+}
+
+func Inspect(err error) string {
+	if err := Cast(err); err != nil {
+		return err.Summary()
+	}
+
+	return err.Error()
 }
 
 func Unwrap(err error) error {
