@@ -1,63 +1,26 @@
-package failure
+package stacktrace
 
 import (
 	"fmt"
 	"io"
 	"runtime"
 	"strconv"
-	"sync"
-	"sync/atomic"
 )
 
 type StackTrace struct {
-	Counter []uintptr
-	Cause   *StackTrace
+	pc    []uintptr
+	cause *StackTrace
 }
 
-func getStackTrace() *StackTrace {
+func (s *StackTrace) Cause(cause *StackTrace) {
+	s.cause = cause
+}
+
+func Collect() *StackTrace {
 	pc := [128]uintptr{}
 	return &StackTrace{
-		Counter: pc[:runtime.Callers(6, pc[:])],
+		pc: pc[:runtime.Callers(5, pc[:])],
 	}
-}
-
-type stackTraceTransformer struct {
-	mu          *sync.Mutex
-	transform   *atomic.Value
-	initialized bool
-}
-
-var transformer = func() *stackTraceTransformer {
-	t := &stackTraceTransformer{
-		&sync.Mutex{},
-		&atomic.Value{},
-		false,
-	}
-
-	var value StackTraceFilePathTransformer = func(line string) string {
-		return line
-	}
-
-	t.transform.Store(value)
-
-	return t
-}()
-
-type StackTraceFilePathTransformer func(string) string
-
-func InitializeStackTraceTransformer(subtransformer StackTraceFilePathTransformer) (StackTraceFilePathTransformer, error) {
-	transformer.mu.Lock()
-	defer transformer.mu.Unlock()
-
-	old := transformer.transform.Load().(StackTraceFilePathTransformer)
-	transformer.transform.Store(subtransformer)
-
-	if transformer.initialized {
-		return old, InitializationFailed.New("stack trace transformer was already set up: %#v", old)
-	}
-
-	transformer.initialized = true
-	return nil, nil
 }
 
 var _ fmt.Formatter = (*StackTrace)(nil)
@@ -70,10 +33,17 @@ func (s *StackTrace) Format(state fmt.State, verb rune) {
 
 	switch verb {
 	case 'v', 's':
-		transformLine := transformer.transform.Load().(StackTraceFilePathTransformer)
+		transformLine := Transformer.Transform.Load().(FilePathTransformer)
 
-		pc, cropped, subpc := s.Counter, 0, s.Cause.Counter
-		if s.Cause != nil {
+		var (
+			pc      []uintptr
+			cropped int
+			subpc   []uintptr
+		)
+
+		pc, cropped = s.pc, 0
+		if s.cause != nil {
+			subpc = s.cause.pc
 			found := false
 			for i := 1; i <= len(pc) && i <= len(subpc); i++ {
 				if pc[len(pc)-i] != subpc[len(subpc)-i] {
@@ -119,9 +89,9 @@ func (s *StackTrace) Format(state fmt.State, verb rune) {
 			io.WriteString(state, " duplicated frames)")
 		}
 
-		if s.Cause != nil {
+		if s.cause != nil {
 			io.WriteString(state, "\n ---------------------------------- ")
-			s.Cause.Format(state, verb)
+			s.cause.Format(state, verb)
 		}
 	}
 }
