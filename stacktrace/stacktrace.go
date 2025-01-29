@@ -3,6 +3,7 @@ package stacktrace
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"runtime"
 	"strconv"
 )
@@ -10,10 +11,16 @@ import (
 type StackTrace struct {
 	pc    []uintptr
 	cause *StackTrace
+	tiny  bool
 }
 
 func (s *StackTrace) Cause(cause *StackTrace) {
 	s.cause = cause
+}
+
+func (s *StackTrace) Trimmed() *StackTrace {
+	s.tiny = true
+	return s
 }
 
 func Collect() *StackTrace {
@@ -78,7 +85,11 @@ func (s *StackTrace) Format(state fmt.State, verb rune) {
 			io.WriteString(state, "\n at ")
 			io.WriteString(state, frame.Function)
 			io.WriteString(state, "()\n\t")
-			io.WriteString(state, transformLine(frame.File))
+			if s.tiny {
+				io.WriteString(state, filepath.Base(frame.File))
+			} else {
+				io.WriteString(state, transformLine(frame.File))
+			}
 			io.WriteString(state, ":")
 			io.WriteString(state, strconv.Itoa(frame.Line))
 		}

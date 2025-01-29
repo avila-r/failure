@@ -8,4 +8,5 @@ const (
 	TraceBorrowOnly
 	TraceEnhance
 	TraceOmit
+	TraceTrimmed
 )
