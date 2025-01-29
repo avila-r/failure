@@ -41,6 +41,11 @@ func (b ErrorBuilder) Cause(err error) ErrorBuilder {
 	return b
 }
 
+func (b ErrorBuilder) StackTrace() ErrorBuilder {
+	b.mode = stacktrace.TraceTrimmed
+	return b
+}
+
 func (b ErrorBuilder) Transparent() ErrorBuilder {
 	if b.cause == nil {
 		panic("wrong builder usage: wrap modifier without non-nil cause")
@@ -75,12 +80,12 @@ func (b ErrorBuilder) Build() *Error {
 		class:       b.class,
 		Message:     b.message,
 		Cause:       b.cause,
-		Transparent: b.transparent,
-		StackTrace:  b.assembleStackTrace(),
+		transparent: b.transparent,
+		StackTrace:  b.SetupStackTrace(),
 	}
 }
 
-func (b ErrorBuilder) assembleStackTrace() *stacktrace.StackTrace {
+func (b ErrorBuilder) SetupStackTrace() *stacktrace.StackTrace {
 	switch b.mode {
 	case stacktrace.TraceCollect:
 		return stacktrace.Collect()
@@ -101,6 +106,10 @@ func (b ErrorBuilder) assembleStackTrace() *stacktrace.StackTrace {
 		return current
 	case stacktrace.TraceOmit:
 		return nil
+	case stacktrace.TraceTrimmed:
+		return stacktrace.
+			Collect().
+			Trimmed()
 	default:
 		panic("unknown mode " + strconv.Itoa(int(b.mode)))
 	}
