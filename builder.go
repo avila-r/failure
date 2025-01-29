@@ -81,7 +81,7 @@ func (b ErrorBuilder) Build() *Error {
 		Message:     b.message,
 		Cause:       b.cause,
 		transparent: b.transparent,
-		StackTrace:  b.SetupStackTrace(),
+		stacktrace:  b.SetupStackTrace(),
 	}
 }
 
@@ -117,7 +117,7 @@ func (b ErrorBuilder) SetupStackTrace() *stacktrace.StackTrace {
 
 func (b ErrorBuilder) collect(cause error) *stacktrace.StackTrace {
 	if casted := Cast(cause); casted != nil {
-		return casted.StackTrace
+		return casted.stacktrace
 	}
 
 	return nil
