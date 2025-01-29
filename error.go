@@ -15,14 +15,14 @@ import (
 type Error struct {
 	class *ErrorClass
 
-	Message    string
-	Cause      error
-	StackTrace *stacktrace.StackTrace
-	properties *property.List
+	Message string
+	Cause   error
 
-	Transparent            bool
-	HasUnderlying          bool
-	PrintablePropertyCount uint8
+	stacktrace             *stacktrace.StackTrace
+	properties             *property.List
+	transparent            bool
+	hasUnderlying          bool
+	printablePropertyCount uint8
 }
 
 var (
@@ -59,7 +59,7 @@ func (e *Error) As(target any) bool {
 func (e *Error) Has(trait trait.Trait) bool {
 	cause := e
 	for cause != nil {
-		if !cause.Transparent {
+		if !cause.transparent {
 			return cause.class.Has(trait)
 		}
 		cause = Cast(cause.Cause)
@@ -71,7 +71,7 @@ func (e *Error) Has(trait trait.Trait) bool {
 func (e *Error) Extends(c *ErrorClass) bool {
 	cause := e
 	for cause != nil {
-		if !cause.Transparent {
+		if !cause.transparent {
 			return cause.Class().Is(c)
 		}
 
@@ -116,7 +116,7 @@ func (e *Error) Property(key string) property.Result {
 			}
 		}
 
-		if !cause.Transparent {
+		if !cause.transparent {
 			break
 		}
 
@@ -132,8 +132,8 @@ func (e *Error) Property(key string) property.Result {
 func (e *Error) With(key string, value any) *Error {
 	copy := *e
 	copy.properties = copy.properties.Set(key, value)
-	if copy.PrintablePropertyCount < 255 {
-		copy.PrintablePropertyCount++
+	if copy.printablePropertyCount < 255 {
+		copy.printablePropertyCount++
 	}
 	return &copy
 }
@@ -157,12 +157,12 @@ func (e *Error) Also(errs ...error) *Error {
 
 	l := len(new)
 	copy := e.With(property.Underlying, new[:l:l])
-	copy.HasUnderlying = true
+	copy.hasUnderlying = true
 	return copy
 }
 
 func (e *Error) Unwrap() error {
-	if e != nil && e.Cause != nil && e.Transparent {
+	if e != nil && e.Cause != nil && e.transparent {
 		return e.Cause
 	} else {
 		return nil
@@ -172,7 +172,7 @@ func (e *Error) Unwrap() error {
 func (e *Error) Class() *ErrorClass {
 	cause := e
 	for cause != nil {
-		if !cause.Transparent {
+		if !cause.transparent {
 			return cause.class
 		}
 
@@ -210,10 +210,10 @@ func (e *Error) Summary() string {
 	}
 
 	properties := ""
-	if e.properties != nil && e.PrintablePropertyCount != 0 {
+	if e.properties != nil && e.printablePropertyCount != 0 {
 		var (
-			uniq = make(map[string]struct{}, e.PrintablePropertyCount)
-			strs = make([]string, 0, e.PrintablePropertyCount)
+			uniq = make(map[string]struct{}, e.printablePropertyCount)
+			strs = make([]string, 0, e.printablePropertyCount)
 		)
 
 		for m := e.properties; m != nil; m = m.Next {
@@ -233,7 +233,7 @@ func (e *Error) Summary() string {
 	}
 
 	underlying := ""
-	if e.HasUnderlying {
+	if e.hasUnderlying {
 		details := make([]string, 0, len(e.underlying()))
 		for _, err := range e.underlying() {
 			details = append(details, err.Error())
@@ -241,7 +241,7 @@ func (e *Error) Summary() string {
 		underlying = fmt.Sprintf("(hidden: %s)", join(", ", details...))
 	}
 
-	if transparent := join(" ", text, underlying); e.Transparent {
+	if transparent := join(" ", text, underlying); e.transparent {
 		return transparent
 	} else {
 		return join(": ", e.class.Name, transparent)
@@ -249,7 +249,7 @@ func (e *Error) Summary() string {
 }
 
 func (e *Error) underlying() []error {
-	if !e.HasUnderlying {
+	if !e.hasUnderlying {
 		return nil
 	}
 	u, _ := e.properties.Get(property.Underlying)
@@ -277,8 +277,8 @@ func (e *Error) Format(state fmt.State, verb rune) {
 	switch message := e.Summary(); verb {
 	case 'v':
 		_, _ = io.WriteString(state, message)
-		if state.Flag('+') && e.StackTrace != nil {
-			e.StackTrace.Format(state, verb)
+		if state.Flag('+') && e.stacktrace != nil {
+			e.stacktrace.Format(state, verb)
 		}
 	case 's':
 		_, _ = io.WriteString(state, message)
