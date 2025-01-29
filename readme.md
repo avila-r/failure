@@ -46,9 +46,8 @@ func Find(id int, out *User) error {
 func Delete(id int) error {
 	user := User{}
 	if err := Find(id, &user); err != nil {
-	return failure.Decorate(err, "unable to delete user")
+		return failure.Decorate(err, "unable to delete user")
 	}
-	// ...
 }
 
 //
