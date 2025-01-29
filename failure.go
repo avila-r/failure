@@ -50,6 +50,7 @@ func Decorate(err error, message string, v ...any) *Error {
 	return Builder(transparentWrapper).
 		Message(message, v...).
 		Cause(err).
+		StackTrace().
 		Build()
 }
 
@@ -62,7 +63,7 @@ func Enhance(err error, message string, v ...any) *Error {
 }
 
 func EnsureStackTrace(err error) *Error {
-	if casted := Cast(err); casted != nil && casted.StackTrace != nil {
+	if casted := Cast(err); casted != nil && casted.stacktrace != nil {
 		return casted
 	}
 
