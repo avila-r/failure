@@ -62,7 +62,7 @@ func Enhance(err error, message string, v ...any) *Error {
 		Build()
 }
 
-func EnsureStackTrace(err error) *Error {
+func Enhanced(err error) *Error {
 	if casted := Cast(err); casted != nil && casted.stacktrace != nil {
 		return casted
 	}
