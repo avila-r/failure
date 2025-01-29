@@ -3,34 +3,26 @@ package failure
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/avila-r/failure/stacktrace"
 )
 
 type ErrorBuilder struct {
 	class       *ErrorClass
 	message     string
 	cause       error
-	mode        ErrorBuildStackMode
+	mode        stacktrace.BuildStackMode
 	transparent bool
 }
-
-type ErrorBuildStackMode int
-
-const (
-	ErrorBuildStackModeTraceCollect ErrorBuildStackMode = iota + 1
-	ErrorBuildStackModeTraceCollectTraceBorrowOrCollect
-	ErrorBuildStackModeTraceBorrowOnly
-	ErrorBuildStackModeTraceEnhance
-	ErrorBuildStackModeTraceOmit
-)
 
 func Builder(c *ErrorClass) ErrorBuilder {
 	return ErrorBuilder{
 		class: c,
-		mode: func() ErrorBuildStackMode {
+		mode: func() stacktrace.BuildStackMode {
 			if c.Modifiers.CollectStackTrace() {
-				return ErrorBuildStackModeTraceCollect
+				return stacktrace.TraceCollect
 			} else {
-				return ErrorBuildStackModeTraceOmit
+				return stacktrace.TraceOmit
 			}
 		}(),
 		transparent: c.Modifiers.Transparent(),
@@ -41,9 +33,9 @@ func (b ErrorBuilder) Cause(err error) ErrorBuilder {
 	b.cause = err
 	if Cast(err) != nil {
 		if b.class.Modifiers.CollectStackTrace() {
-			b.mode = ErrorBuildStackModeTraceCollectTraceBorrowOrCollect
+			b.mode = stacktrace.TraceBorrowOrCollect
 		} else {
-			b.mode = ErrorBuildStackModeTraceBorrowOnly
+			b.mode = stacktrace.TraceBorrowOnly
 		}
 	}
 	return b
@@ -62,9 +54,9 @@ func (b ErrorBuilder) EnhanceStackTrace() ErrorBuilder {
 		panic("wrong builder usage: wrap modifier without non-nil cause")
 	}
 	if Cast(b.cause) != nil {
-		b.mode = ErrorBuildStackModeTraceEnhance
+		b.mode = stacktrace.TraceEnhance
 	} else {
-		b.mode = ErrorBuildStackModeTraceCollect
+		b.mode = stacktrace.TraceCollect
 	}
 	return b
 }
@@ -84,33 +76,40 @@ func (b ErrorBuilder) Build() *Error {
 		Message:     b.message,
 		Cause:       b.cause,
 		Transparent: b.transparent,
-		StackTrace: func() *StackTrace {
-			switch b.mode {
-			case ErrorBuildStackModeTraceCollect:
-				return getStackTrace()
-			case ErrorBuildStackModeTraceBorrowOnly:
-				if casted := Cast(b.cause); casted != nil {
-					return casted.StackTrace
-				} else {
-					return nil
-				}
-			case ErrorBuildStackModeTraceCollectTraceBorrowOrCollect:
-				if casted := Cast(b.cause); casted != nil && casted.StackTrace != nil {
-					return casted.StackTrace
-				} else {
-					return getStackTrace()
-				}
-			case ErrorBuildStackModeTraceEnhance:
-				current := getStackTrace()
-				if casted := Cast(b.cause); casted != nil && casted.StackTrace != nil {
-					current.Cause = casted.StackTrace
-				}
-				return current
-			case ErrorBuildStackModeTraceOmit:
-				return nil
-			default:
-				panic("unknown mode " + strconv.Itoa(int(b.mode)))
-			}
-		}(),
+		StackTrace:  b.assembleStackTrace(),
 	}
+}
+
+func (b ErrorBuilder) assembleStackTrace() *stacktrace.StackTrace {
+	switch b.mode {
+	case stacktrace.TraceCollect:
+		return stacktrace.Collect()
+
+	case stacktrace.TraceBorrowOrCollect:
+		return b.collect(b.cause)
+	case stacktrace.TraceBorrowOnly:
+		if st := b.collect(b.cause); st != nil {
+			return st
+		}
+
+		return stacktrace.Collect()
+	case stacktrace.TraceEnhance:
+		current, initial := stacktrace.Collect(), b.collect(b.cause)
+		if initial != nil {
+			current.Cause(initial)
+		}
+		return current
+	case stacktrace.TraceOmit:
+		return nil
+	default:
+		panic("unknown mode " + strconv.Itoa(int(b.mode)))
+	}
+}
+
+func (b ErrorBuilder) collect(cause error) *stacktrace.StackTrace {
+	if casted := Cast(cause); casted != nil {
+		return casted.StackTrace
+	}
+
+	return nil
 }
