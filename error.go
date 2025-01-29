@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/avila-r/failure/property"
+	"github.com/avila-r/failure/stacktrace"
 	"github.com/avila-r/failure/trait"
 )
 
@@ -16,7 +17,7 @@ type Error struct {
 
 	Message    string
 	Cause      error
-	StackTrace *StackTrace
+	StackTrace *stacktrace.StackTrace
 	properties *property.List
 
 	Transparent            bool
@@ -276,7 +277,7 @@ func (e *Error) Format(state fmt.State, verb rune) {
 	switch message := e.Summary(); verb {
 	case 'v':
 		_, _ = io.WriteString(state, message)
-		if state.Flag('+') {
+		if state.Flag('+') && e.StackTrace != nil {
 			e.StackTrace.Format(state, verb)
 		}
 	case 's':
