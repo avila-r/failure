@@ -176,7 +176,16 @@ func Extract[T any](err error, key string) (out T) {
 	if err := Cast(err); err != nil {
 		err.Property(key).Bind(&out)
 	}
+
 	return
+}
+
+func Contains(err error, key string) bool {
+	if err := Cast(err); err != nil {
+		return err.Property(key).Ok
+	}
+
+	return false
 }
 
 func Inspect(err error) string {
