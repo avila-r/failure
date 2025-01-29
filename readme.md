@@ -29,7 +29,7 @@ err := failure.Of("message, arg %v", 1)
 other := failure.Of("message, arg %v", 2)
 
 if failure.As(err, other) { // True
-    // ...
+	// ...
 }
 ```
 
@@ -45,10 +45,10 @@ func Find(id int, out *User) error {
 
 func Delete(id int) error {
 	user := User{}
-    if err := Find(id, &user); err != nil {
-        return failure.Decorate(err, "unable to delete user")
-    }
-    // ...
+	if err := Find(id, &user); err != nil {
+	return failure.Decorate(err, "unable to delete user")
+	}
+	// ...
 }
 
 //
@@ -62,46 +62,46 @@ if err := users.Delete(1); err != nil {
 You can organize your errors into namespaces, classes, and traits:
 ```go
 var (
-    UserErrors = failure.Class("user")
-
-    ErrNotFound = UserErrors.New("user wasn't found")
+	UserErrors = failure.Class("user")
+	
+	ErrNotFound = UserErrors.New("user wasn't found")
 )
 
 if err := Find(); failure.Is(err, ErrNotFound) /* or ErrNotFound.Is(err) */ {
-    // ...
+	// ...
 }
 
 // or
 
 if err := Find(); failure.Extends(err, UserErrors) {
-    // ...
+	// ...
 }
 ```
 ```go
 var (
-    UserErrors = failure.Class("user")
-
-    NotFound = UserErrors.Class("not_found", trait.NotFound)
+	UserErrors = failure.Class("user")
+	
+	NotFound = UserErrors.Class("not_found", trait.NotFound)
 )
 
 Find := func() error {
-    return NotFound.New("unable to find user with the provided email")
+	return NotFound.New("unable to find user with the provided email")
 }
 
 if err := Find(); failure.Extends(err, NotFound) {
-    // ...
+	// ...
 }
 
 // or
 
 if err := Find(); err != nil {
-    return failure.Decorate(err, "failed to delete user")
+r	eturn failure.Decorate(err, "failed to delete user")
 }
 
 // or
 
 if err := Find(); failure.Has(err, trait.NotFound) {
-    // ...
+	// ...
 }
 ```
 
@@ -111,23 +111,23 @@ if err := Find(); failure.Has(err, trait.NotFound) {
 Properties can be used to encapsulate additional payload/context or details for your errors. For example:
 ```go
 import (
-    "github.com/avila-r/failure"
-    "github.com/avila-r/failure/property"
+	"github.com/avila-r/failure"
+	"github.com/avila-r/failure/property"
 )
 
 var (
-    ErrNotFound = failure.
-        New("user not found").
-        With(property.StatusCode, http.StatusNotFound) // Additional payload
+	ErrNotFound = failure.
+		New("user not found").
+		With(property.StatusCode, http.StatusNotFound) // Additional payload
 )
 
 func FindByID(id int) (*User, error) {
-    return nil, ErrNotFound
+	return nil, ErrNotFound
 }
 
 if _, err := FindByID(id); err != nil {
-    code := failure.Extract[int](err, property.StatusCode)
-    // ...
+	code := failure.Extract[int](err, property.StatusCode)
+	// ...
 }
 ```
 
@@ -150,15 +150,15 @@ result := failure.Property(err, "key")
 
 value := 0
 if ok := result.Bind(&value); !ok {
-    // Handle
+	// Handle
 }
 ```
 
 The function `failure.Extract[T]()` is also available to unwrap errors' properties:
 ```go
 ErrNotFound := failure.
-    Of("user not found").
-    With(property.StatusCode, http.StatusNotFound)
+	Of("user not found").
+	With(property.StatusCode, http.StatusNotFound)
 
 code := failure.Extract[int](ErrNotFound, "code")
 
