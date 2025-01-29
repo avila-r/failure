@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/avila-r/failure/property"
+	"github.com/avila-r/failure/stacktrace"
 	"github.com/avila-r/failure/trait"
 )
 
@@ -52,7 +53,7 @@ func Decorate(err error, message string, v ...any) *Error {
 		Build()
 }
 
-func EnhanceStackTrace(err error, message string, v ...any) *Error {
+func Enhance(err error, message string, v ...any) *Error {
 	return Builder(transparentWrapper).
 		Message(message, v...).
 		Cause(err).
@@ -116,6 +117,10 @@ func Is(err, target error) bool {
 }
 
 func As(err error, target any) bool {
+	if errors.As(err, &target) {
+		return true
+	}
+
 	if target == nil || err == nil {
 		return false
 	}
@@ -129,7 +134,7 @@ func As(err error, target any) bool {
 	}
 
 	// *target must be interface or implement error
-	if e := typ.Elem(); e.Kind() != reflect.Interface && !e.Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+	if typ != reflect.TypeOf(&Error{}) && reflect.TypeOf(err).AssignableTo(typ.Elem()) {
 		return false
 	}
 
@@ -166,6 +171,13 @@ func Property(err error, key string) property.Result {
 	return property.Empty()
 }
 
+func Extract[T any](err error, key string) (out T) {
+	if err := Cast(err); err != nil {
+		err.Property(key).Bind(&out)
+	}
+	return
+}
+
 func Inspect(err error) string {
 	if err := Cast(err); err != nil {
 		return err.Summary()
@@ -186,6 +198,59 @@ func Unwrap(err error) error {
 	return u.Unwrap()
 }
 
+func Must[T any](v T, err error) T {
+	if err != nil {
+		panic(err.Error())
+	}
+	return v
+}
+
+func Try(f func()) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			switch v := r.(type) {
+			case error:
+				err = Err("recovered value: %w", v)
+			default:
+				err = Err("recovered value: %v", r)
+			}
+		}
+	}()
+	f()
+	return
+}
+
+func Pie(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func Deref[T any](p *T, def ...T) (t T) {
+	if p != nil {
+		return *p
+	}
+	if len(def) > 0 {
+		return def[0]
+	}
+	return
+}
+
 func Trait(label string) trait.Trait {
 	return trait.New(label)
+}
+
+func InitializeStackTraceTransformer(subtransformer stacktrace.FilePathTransformer) (stacktrace.FilePathTransformer, error) {
+	stacktrace.Transformer.Mu.Lock()
+	defer stacktrace.Transformer.Mu.Unlock()
+
+	old := stacktrace.Transformer.Transform.Load().(stacktrace.FilePathTransformer)
+	stacktrace.Transformer.Transform.Store(subtransformer)
+
+	if stacktrace.Transformer.Initialized {
+		return old, InitializationFailed.New("stack trace transformer was already set up: %#v", old)
+	}
+
+	stacktrace.Transformer.Initialized = true
+	return nil, nil
 }
