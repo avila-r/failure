@@ -94,7 +94,7 @@ if err := Find(); failure.Extends(err, NotFound) {
 // or
 
 if err := Find(); err != nil {
-r	eturn failure.Decorate(err, "failed to delete user")
+	return failure.Decorate(err, "failed to delete user")
 }
 
 // or
