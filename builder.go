@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/avila-r/failure/stacktrace"
+	"github.com/avila-r/failure/trail"
 )
 
 type ErrorBuilder struct {
@@ -82,6 +83,7 @@ func (b ErrorBuilder) Build() *Error {
 		cause:       b.cause,
 		transparent: b.transparent,
 		stacktrace:  b.SetupStackTrace(),
+		trail:       trail.New(),
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/avila-r/failure/ctx"
 	"github.com/avila-r/failure/property"
 	"github.com/avila-r/failure/stacktrace"
 	"github.com/avila-r/failure/trait"
@@ -248,6 +249,64 @@ func Deref[T any](p *T, def ...T) (t T) {
 
 func Trait(label string) trait.Trait {
 	return trait.New(label)
+}
+
+func Deep[T comparable](err *Error, getter func(*Error) T) T {
+	if err.cause == nil {
+		return getter(err)
+	}
+
+	if casted := Cast(err.cause); casted != nil {
+		return func(values ...T) T {
+			var zero T
+			for _, v := range values {
+				if v != zero {
+					return v
+				}
+			}
+			return zero
+		}(Deep(casted, getter), getter(err))
+	}
+
+	return getter(err)
+}
+
+func Recurse(err *Error, do func(*Error)) {
+	do(err)
+
+	if err.cause == nil {
+		return
+	}
+
+	if casted := Cast(err.cause); casted != nil {
+		Recurse(casted, do)
+	}
+}
+
+func Gather(err *Error, getter func(*Error) ctx.Context) ctx.Context {
+	if err.cause == nil {
+		return getter(err)
+	}
+
+	if casted := Cast(err.cause); casted != nil {
+		return func(maps ...ctx.Context) ctx.Context {
+			count := 0
+			for i := range maps {
+				count += len(maps[i])
+			}
+
+			out := make(ctx.Context, count)
+			for i := range maps {
+				for k := range maps[i] {
+					out[k] = maps[i][k]
+				}
+			}
+
+			return out
+		}(ctx.Context{}, getter(err), Gather(casted, getter))
+	}
+
+	return getter(err)
 }
 
 func InitializeStackTraceTransformer(subtransformer stacktrace.FilePathTransformer) (stacktrace.FilePathTransformer, error) {
