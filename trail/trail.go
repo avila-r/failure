@@ -12,7 +12,6 @@ import (
 
 type (
 	Trail struct {
-		Span   string
 		Frames []step
 	}
 )
@@ -22,7 +21,7 @@ const (
 	this  = "github.com/avila-r/failure"
 )
 
-func New(span string) *Trail {
+func New() *Trail {
 	frames := []step{}
 
 	for i := 1; len(frames) < depth; i++ {
@@ -64,7 +63,6 @@ func New(span string) *Trail {
 	}
 
 	return &Trail{
-		Span:   span,
 		Frames: frames,
 	}
 }
