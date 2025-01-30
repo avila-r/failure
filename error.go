@@ -12,23 +12,60 @@ import (
 	"github.com/avila-r/failure/trait"
 )
 
-type Error struct {
-	class *ErrorClass
-
-	Message string
-	Cause   error
-
-	stacktrace             *stacktrace.StackTrace
-	properties             *property.List
-	transparent            bool
-	hasUnderlying          bool
-	printablePropertyCount uint8
-}
-
 var (
 	_ error         = (*Error)(nil)
 	_ fmt.Formatter = (*Error)(nil)
 )
+
+type Error struct {
+	class *ErrorClass
+
+	message string
+	cause   error
+
+	stacktrace    *stacktrace.StackTrace
+	properties    *property.List
+	transparent   bool
+	hasUnderlying bool
+	ppc           uint8
+}
+
+// Error implements the error interface.
+// A result is the same as with %s formatter and does not contain a stack trace.
+func (e *Error) Error() string {
+	return e.message
+}
+
+func (e *Error) Message() string {
+	return e.message
+}
+
+func (e *Error) Cause() error {
+	return e.cause
+}
+
+// Format implements the Formatter interface.
+//
+// Supported verbs:
+//
+//	%s		simple message output
+//	%v		simple message output
+//	%+v		full output complete with a stack trace
+//
+// In is nearly always preferable to use %+v format.
+// If a stack trace is not required, it should be omitted
+// at the moment of creation rather in formatting.
+func (e *Error) Format(state fmt.State, verb rune) {
+	switch message := e.Summary(); verb {
+	case 'v':
+		_, _ = io.WriteString(state, message)
+		if state.Flag('+') && e.stacktrace != nil {
+			e.stacktrace.Format(state, verb)
+		}
+	case 's':
+		_, _ = io.WriteString(state, message)
+	}
+}
 
 func (e *Error) Belongs(err error) bool {
 	typed := Cast(err)
@@ -38,17 +75,17 @@ func (e *Error) Belongs(err error) bool {
 
 func (e *Error) Is(err error) bool {
 	if err, ok := err.(*Error); ok {
-		return e.Message == err.Message
+		return e.message == err.message
 	}
 
-	return e.Message == err.Error()
+	return e.message == err.Error()
 }
 
 func (e *Error) As(target any) bool {
 	t := reflect.Indirect(reflect.ValueOf(target)).Interface()
 
 	if err, ok := t.(*Error); ok {
-		if e.Message == err.Message {
+		if e.message == err.message {
 			reflect.ValueOf(target).Elem().Set(reflect.ValueOf(err))
 			return true
 		}
@@ -62,7 +99,7 @@ func (e *Error) Has(trait trait.Trait) bool {
 		if !cause.transparent {
 			return cause.class.Has(trait)
 		}
-		cause = Cast(cause.Cause)
+		cause = Cast(cause.cause)
 	}
 
 	return false
@@ -76,7 +113,7 @@ func (e *Error) Extends(c *ErrorClass) bool {
 		}
 
 		cause = func() *Error {
-			raw := e.Cause
+			raw := e.cause
 			for raw != nil {
 				typed := Cast(raw)
 				if typed != nil {
@@ -120,7 +157,7 @@ func (e *Error) Property(key string) property.Result {
 			break
 		}
 
-		cause = Cast(cause.Cause)
+		cause = Cast(cause.cause)
 	}
 
 	return property.Result{
@@ -132,8 +169,8 @@ func (e *Error) Property(key string) property.Result {
 func (e *Error) With(key string, value any) *Error {
 	copy := *e
 	copy.properties = copy.properties.Set(key, value)
-	if copy.printablePropertyCount < 255 {
-		copy.printablePropertyCount++
+	if copy.ppc < 255 {
+		copy.ppc++
 	}
 	return &copy
 }
@@ -162,8 +199,8 @@ func (e *Error) Also(errs ...error) *Error {
 }
 
 func (e *Error) Unwrap() error {
-	if e != nil && e.Cause != nil && e.transparent {
-		return e.Cause
+	if e != nil && e.cause != nil && e.transparent {
+		return e.cause
 	} else {
 		return nil
 	}
@@ -176,7 +213,7 @@ func (e *Error) Class() *ErrorClass {
 			return cause.class
 		}
 
-		cause = Cast(cause.Cause)
+		cause = Cast(cause.cause)
 	}
 
 	return foreignClass
@@ -210,10 +247,10 @@ func (e *Error) Summary() string {
 	}
 
 	properties := ""
-	if e.properties != nil && e.printablePropertyCount != 0 {
+	if e.properties != nil && e.ppc != 0 {
 		var (
-			uniq = make(map[string]struct{}, e.printablePropertyCount)
-			strs = make([]string, 0, e.printablePropertyCount)
+			uniq = make(map[string]struct{}, e.ppc)
+			strs = make([]string, 0, e.ppc)
 		)
 
 		for m := e.properties; m != nil; m = m.Next {
@@ -227,8 +264,8 @@ func (e *Error) Summary() string {
 		properties = "{" + strings.Join(strs, ", ") + "}"
 	}
 
-	text := join(" ", e.Message, properties)
-	if cause := e.Cause; cause != nil {
+	text := join(" ", e.message, properties)
+	if cause := e.cause; cause != nil {
 		text = join(", cause: ", text, cause.Error())
 	}
 
@@ -254,33 +291,4 @@ func (e *Error) underlying() []error {
 	}
 	u, _ := e.properties.Get(property.Underlying)
 	return u.([]error)
-}
-
-// Error implements the error interface.
-// A result is the same as with %s formatter and does not contain a stack trace.
-func (e *Error) Error() string {
-	return e.Message
-}
-
-// Format implements the Formatter interface.
-//
-// Supported verbs:
-//
-//	%s		simple message output
-//	%v		simple message output
-//	%+v		full output complete with a stack trace
-//
-// In is nearly always preferable to use %+v format.
-// If a stack trace is not required, it should be omitted
-// at the moment of creation rather in formatting.
-func (e *Error) Format(state fmt.State, verb rune) {
-	switch message := e.Summary(); verb {
-	case 'v':
-		_, _ = io.WriteString(state, message)
-		if state.Flag('+') && e.stacktrace != nil {
-			e.stacktrace.Format(state, verb)
-		}
-	case 's':
-		_, _ = io.WriteString(state, message)
-	}
 }

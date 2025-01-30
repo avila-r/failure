@@ -78,8 +78,8 @@ func (b ErrorBuilder) Message(message string, v ...any) ErrorBuilder {
 func (b ErrorBuilder) Build() *Error {
 	return &Error{
 		class:       b.class,
-		Message:     b.message,
-		Cause:       b.cause,
+		message:     b.message,
+		cause:       b.cause,
 		transparent: b.transparent,
 		stacktrace:  b.SetupStackTrace(),
 	}
