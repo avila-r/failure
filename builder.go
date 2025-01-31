@@ -21,12 +21,44 @@ func Builder(c *ErrorClass) ErrorBuilder {
 		class: c,
 		mode: func() stacktrace.BuildStackMode {
 			if c.Modifiers.CollectStackTrace() {
-				return stacktrace.TraceCollect
+				return stacktrace.TraceTrimmed
 			} else {
 				return stacktrace.TraceOmit
 			}
 		}(),
 		transparent: c.Modifiers.Transparent(),
+	}
+}
+
+func BuilderFrom(err error) ErrorBuilder {
+	casted := Cast(err)
+	if casted != nil {
+		return ErrorBuilder{
+			class:   casted.Class(),
+			message: casted.Message(),
+			cause:   casted.cause,
+			mode: func() stacktrace.BuildStackMode {
+				if casted.Class().Modifiers.CollectStackTrace() {
+					return stacktrace.TraceTrimmed
+				} else {
+					return stacktrace.TraceOmit
+				}
+			}(),
+			transparent: casted.Class().Modifiers.Transparent(),
+		}
+	}
+
+	return ErrorBuilder{
+		class:   DefaultClass,
+		message: err.Error(),
+		mode: func() stacktrace.BuildStackMode {
+			if DefaultClass.Modifiers.CollectStackTrace() {
+				return stacktrace.TraceCollect
+			} else {
+				return stacktrace.TraceOmit
+			}
+		}(),
+		transparent: DefaultClass.Modifiers.Transparent(),
 	}
 }
 
@@ -43,7 +75,7 @@ func (b ErrorBuilder) Cause(err error) ErrorBuilder {
 }
 
 func (b ErrorBuilder) StackTrace() ErrorBuilder {
-	b.mode = stacktrace.TraceTrimmed
+	b.mode = stacktrace.TraceCollect
 	return b
 }
 
@@ -87,10 +119,10 @@ func (b ErrorBuilder) Build() *Error {
 	}
 }
 
-func (b ErrorBuilder) SetupStackTrace() *stacktrace.StackTrace {
+func (b ErrorBuilder) SetupStackTrace(skip ...int) *stacktrace.StackTrace {
 	switch b.mode {
 	case stacktrace.TraceCollect:
-		return stacktrace.Collect()
+		return stacktrace.Collect(skip...)
 
 	case stacktrace.TraceBorrowOrCollect:
 		return b.collect(b.cause)
@@ -101,7 +133,7 @@ func (b ErrorBuilder) SetupStackTrace() *stacktrace.StackTrace {
 
 		return stacktrace.Collect()
 	case stacktrace.TraceEnhance:
-		current, initial := stacktrace.Collect(), b.collect(b.cause)
+		current, initial := stacktrace.Collect(skip...), b.collect(b.cause)
 		if initial != nil {
 			current.Cause(initial)
 		}
@@ -110,7 +142,7 @@ func (b ErrorBuilder) SetupStackTrace() *stacktrace.StackTrace {
 		return nil
 	case stacktrace.TraceTrimmed:
 		return stacktrace.
-			Collect().
+			Collect(skip...).
 			Trimmed()
 	default:
 		panic("unknown mode " + strconv.Itoa(int(b.mode)))
