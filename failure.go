@@ -38,7 +38,6 @@ func From(err error) *Error {
 	return Cast(err)
 }
 
-// Cast attempts to cast an error to errorx Type, returns nil if cast has failed.
 func Cast(err error) *Error {
 	if e, ok := err.(*Error); ok && e != nil {
 		return e
@@ -50,6 +49,20 @@ func Cast(err error) *Error {
 func Decorate(err error, message string, v ...any) *Error {
 	return Builder(transparentWrapper).
 		Message(message, v...).
+		Cause(err).
+		StackTrace().
+		Build()
+}
+
+func Decorated(err error) *Error {
+	if casted := Cast(err); casted != nil && casted.stacktrace != nil {
+		return BuilderFrom(casted).
+			StackTrace().
+			Build()
+	}
+
+	return Builder(stackTraceWrapper).
+		Message("").
 		Cause(err).
 		StackTrace().
 		Build()
