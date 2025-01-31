@@ -82,6 +82,10 @@ func (e *Error) Format(state fmt.State, verb rune) {
 	}
 }
 
+func (e *Error) LogValue() slog.Value {
+	return e.Logs()
+}
+
 func (e *Error) Class() *ErrorClass {
 	cause := e
 	for cause != nil {
@@ -288,6 +292,11 @@ func (e *Error) WithTime(time time.Time) *Error {
 	return e
 }
 
+func (e *Error) WithCause(err error) *Error {
+	e.cause = err
+	return e
+}
+
 func (e *Error) Assert(condition bool, message ...any) *Error {
 	msg, args := "assertion failed on error's constructor", []any{}
 	if len(message) > 0 {
@@ -327,6 +336,38 @@ func (o *Error) Recover(f func()) (err error) {
 
 func (e *Error) Chain() ErrorChain {
 	return ErrorChain{e}
+}
+
+func (e *Error) Decorate() {
+	e.stacktrace = BuilderFrom(e).
+		StackTrace().
+		SetupStackTrace(4)
+}
+
+func (e *Error) Enhance() {
+	if e.Cause() != nil {
+		e.stacktrace = BuilderFrom(e).
+			EnhanceStackTrace().
+			SetupStackTrace(3)
+	}
+}
+
+func (e *Error) Decorated() *Error {
+	e.stacktrace = BuilderFrom(e).
+		StackTrace().
+		SetupStackTrace(4)
+
+	return e
+}
+
+func (e *Error) Enhanced() *Error {
+	if e.Cause() != nil {
+		e.stacktrace = BuilderFrom(e).
+			EnhanceStackTrace().
+			SetupStackTrace(4)
+	}
+
+	return e
 }
 
 func (e *Error) Belongs(err error) bool {
@@ -548,10 +589,6 @@ func (e *Error) Underlying() []error {
 	}
 	u, _ := e.properties.Get(property.Underlying)
 	return u.([]error)
-}
-
-func (e *Error) LogValue() slog.Value {
-	return e.Logs()
 }
 
 func (e *Error) Logs() slog.Value {
