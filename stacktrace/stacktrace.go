@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 type StackTrace struct {
@@ -23,10 +24,16 @@ func (s *StackTrace) Trimmed() *StackTrace {
 	return s
 }
 
-func Collect() *StackTrace {
+func Collect(skip ...int) *StackTrace {
 	pc := [128]uintptr{}
 	return &StackTrace{
-		pc: pc[:runtime.Callers(5, pc[:])],
+		pc: pc[:runtime.Callers(func() int {
+			if len(skip) > 0 {
+				return skip[0]
+			} else {
+				return 5
+			}
+		}(), pc[:])],
 	}
 }
 
@@ -82,6 +89,11 @@ func (s *StackTrace) Format(state fmt.State, verb rune) {
 		}
 
 		for _, frame := range frames {
+			if strings.Contains(frame.File, runtime.GOROOT()) ||
+				strings.Contains(frame.File, "_test.go") {
+				continue
+			}
+
 			io.WriteString(state, "\n at ")
 			io.WriteString(state, frame.Function)
 			io.WriteString(state, "()\n\t")
