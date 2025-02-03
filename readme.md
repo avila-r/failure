@@ -104,6 +104,44 @@ if err := Find(); failure.Has(err, trait.NotFound) {
 }
 ```
 
+To enrich errors with additional metadata, use the `ErrorChain` methods:
+
+```go
+tags := failure.Tags{
+	"critical": "true",
+}
+
+err := failure.Of("operation failed").
+	Chain()
+	Owner("admin").
+	Public("user-facing message").
+	Hint("check network connection").
+	Trace("trace-id-123").
+	Tags(tags).
+	Done()
+
+fmt.Printf("%+v\n", err)
+```
+
+Since `failure.Error` implements `slog.LogValuer`, it can be logged directly:
+
+```go
+import (
+    "log/slog"
+)
+
+logger := slog.Default()
+
+err := failure.Of("database connection failed").
+	Chain()
+	In("db").
+	Owner("backend-team").
+	Trace("trace-xyz").
+	Done()
+
+logger.Error("An error occurred", "error", err)
+```
+
 
 ### Properties:
 
