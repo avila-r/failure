@@ -319,13 +319,13 @@ func (e *Error) Assert(condition bool, message ...any) *Error {
 	return e
 }
 
-func (o *Error) Recover(f func()) (err error) {
+func (e *Error) Recover(f func()) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if e, ok := r.(error); ok {
-				err = o.Also(e)
+			if er, ok := r.(error); ok {
+				err = e.Also(er)
 			} else {
-				err = o.Also(Err("%v", r))
+				err = e.Also(Err("%v", r))
 			}
 		}
 	}()
