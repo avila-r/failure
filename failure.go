@@ -244,9 +244,17 @@ func Try(f func()) (err error) {
 	return
 }
 
+// Panic if error
 func Pie(err error) {
 	if err != nil {
 		panic(err)
+	}
+}
+
+// Decorated panic if error
+func Dpie(err error, message string, v ...any) {
+	if err != nil {
+		panic(Decorate(err, message, v...))
 	}
 }
 
