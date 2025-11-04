@@ -133,7 +133,7 @@ import (
 logger := slog.Default()
 
 err := failure.Of("database connection failed").
-	Chain()
+	Chain().
 	In("db").
 	Owner("backend-team").
 	Trace("trace-xyz").
