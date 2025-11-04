@@ -112,7 +112,7 @@ tags := failure.Tags{
 }
 
 err := failure.Of("operation failed").
-	Chain()
+	Chain().
 	Owner("admin").
 	Public("user-facing message").
 	Hint("check network connection").
